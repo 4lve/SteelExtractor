@@ -6,7 +6,11 @@ import com.steelextractor.extractors.Blocks
 import kotlinx.io.IOException
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.entity.vault.VaultState
+import net.minecraft.world.level.block.state.properties.BlockStateProperties
 import org.slf4j.LoggerFactory
 import java.io.FileWriter
 import java.nio.charset.StandardCharsets
@@ -23,6 +27,11 @@ object SteelExtractor : ModInitializer {
 		// However, some things (like resources) may still be uninitialized.
 		// Proceed with mild caution.
 		logger.info("Hello Fabric world!")
+
+
+        val test = BuiltInRegistries.BLOCK.byId(201)
+        val state = test.defaultBlockState();
+        logger.info(Block.getId(state).toString() + " " + state.toString())
 
         val extractors = arrayOf(
             Blocks()

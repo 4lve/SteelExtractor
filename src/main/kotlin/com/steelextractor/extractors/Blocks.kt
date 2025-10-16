@@ -8,6 +8,7 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.block.state.properties.BlockStateProperties
+import net.minecraft.world.level.block.state.properties.Property
 import java.util.*
 
 class Blocks : SteelExtractor.Extractor {
@@ -44,10 +45,46 @@ class Blocks : SteelExtractor.Extractor {
 
             val propsJson = JsonArray()
             for (prop in block.stateDefinition.properties) {
-                // Use the hashcode to map to a property later; the property names are not unique
                 propsJson.add(getConstantName(BlockStateProperties::class.java, prop))
             }
             blockJson.add("properties", propsJson)
+
+            val defaultProps = JsonArray()
+
+            val state = block.defaultBlockState();
+            for (prop in block.stateDefinition.properties) {
+                val comparableValue = state.getValue(prop)
+                val valueString = (prop as Property<Comparable<*>>).getName(comparableValue as Comparable<*>)
+
+                val prefixedValueString = when (comparableValue) {
+                    is Boolean -> "bool_$valueString"
+                    is Enum<*> -> {
+                        val fullClassName = comparableValue.javaClass.name // e.g., "net.minecraft.core.Direction$Axis$2"
+
+                        // 1. Get substring after the last dot (package name)
+                        //    Result: "Direction$Axis$2"
+                        var classNamePart = fullClassName.substringAfterLast('.', "")
+
+                        // 2. Remove any trailing anonymous class identifiers (e.g., "$2", "$1")
+                        //    Result for "Direction$Axis$2": "Direction$Axis"
+                        //    Result for "RedstoneSide": "RedstoneSide"
+                        val anonymousClassRegex = "\\$\\d+$".toRegex() // Matches "$1", "$2", etc. at the end
+                        classNamePart = classNamePart.replace(anonymousClassRegex, "")
+
+                        // 3. If a '$' remains, take the part after the last '$'
+                        //    Result for "Direction$Axis": "Axis"
+                        //    Result for "RedstoneSide": "RedstoneSide"
+                        val finalClassName = classNamePart.substringAfterLast('$', classNamePart) // Second 'classNamePart' is default if no '$'
+
+                        "enum_${finalClassName}_$valueString"
+                    }
+                    is Number -> "int_$valueString"   // Catches Integer, Long, etc.
+                    else -> "unknown_$valueString"    // Fallback for any other types
+                }
+                defaultProps.add(prefixedValueString)
+            }
+
+            blockJson.add("default_properties", defaultProps)
 
             blocksJson.add(blockJson)
         }
