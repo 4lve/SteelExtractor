@@ -1,0 +1,54 @@
+{
+	"schemaVersion": 1,
+	"id": "steel-extractor",
+	"version": "${version}",
+	"name": "Steel Extractor",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/steel-extractor/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "com.steelextractor.SteelExtractor",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "com.steelextractor.SteelExtractorClient",
+				"adapter": "kotlin"
+			}
+		],
+		"fabric-datagen": [
+			{
+				"value": "com.steelextractor.SteelExtractorDataGenerator",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"steel-extractor.mixins.json",
+		{
+			"config": "steel-extractor.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.17.3",
+		"minecraft": "~1.21.10",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
