@@ -3,6 +3,7 @@ package com.steelextractor
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.steelextractor.extractors.Blocks
+import com.steelextractor.extractors.Items
 import kotlinx.io.IOException
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -34,7 +35,8 @@ object SteelExtractor : ModInitializer {
         logger.info(Block.getId(state).toString() + " " + state.toString())
 
         val extractors = arrayOf(
-            Blocks()
+            Blocks(),
+            Items()
         )
 
         val outputDirectory: Path
