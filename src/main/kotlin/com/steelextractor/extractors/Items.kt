@@ -16,7 +16,7 @@ import net.minecraft.world.item.ScaffoldingBlockItem
 import org.slf4j.LoggerFactory
 
 class Items : SteelExtractor.Extractor {
-    private val logger = LoggerFactory.getLogger("steel-extractor")
+    private val logger = LoggerFactory.getLogger("steel-extractor-items")
 
     override fun fileName(): String {
         return "items.json"
@@ -46,8 +46,6 @@ class Items : SteelExtractor.Extractor {
         for (item in BuiltInRegistries.ITEM) {
             val itemJson = JsonObject()
 
-            val isBlockItem = item is BlockItem
-            logger.info(isBlockItem.toString())
 
             itemJson.addProperty("id", BuiltInRegistries.ITEM.getId(item))
             itemJson.addProperty("name", BuiltInRegistries.ITEM.getKey(item).path)

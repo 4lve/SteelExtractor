@@ -30,9 +30,12 @@ object SteelExtractor : ModInitializer {
 		logger.info("Hello Fabric world!")
 
 
-        val test = BuiltInRegistries.BLOCK.byId(201)
+        val test = BuiltInRegistries.BLOCK.byId(35)
         val state = test.defaultBlockState();
         logger.info(Block.getId(state).toString() + " " + state.toString())
+
+        val test2 = BuiltInRegistries.FLUID.byId(2)
+        logger.info(test2.toString())
 
         val extractors = arrayOf(
             Blocks(),
