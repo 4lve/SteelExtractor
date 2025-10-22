@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.steelextractor.extractors.Blocks
 import com.steelextractor.extractors.Items
+import com.steelextractor.extractors.Packets
 import kotlinx.io.IOException
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -30,16 +31,16 @@ object SteelExtractor : ModInitializer {
 		logger.info("Hello Fabric world!")
 
 
-        val test = BuiltInRegistries.BLOCK.byId(35)
-        val state = test.defaultBlockState();
-        logger.info(Block.getId(state).toString() + " " + state.toString())
+        val test = BuiltInRegistries.DATA_COMPONENT_TYPE.byId(0)
+        logger.info(test.toString())
 
         val test2 = BuiltInRegistries.FLUID.byId(2)
         logger.info(test2.toString())
 
         val extractors = arrayOf(
             Blocks(),
-            Items()
+            Items(),
+            Packets()
         )
 
         val outputDirectory: Path

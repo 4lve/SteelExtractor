@@ -215,8 +215,8 @@ class Blocks : SteelExtractor.Extractor {
 
             behaviourJson.addProperty("liquid", getPrivateFieldValue<Boolean>(behaviourProps, "liquid"))
             behaviourJson.addProperty("isAir", getPrivateFieldValue<Boolean>(behaviourProps, "isAir"))
-            behaviourJson.addProperty("isRedstoneConductor", getPrivateFieldValue<Boolean>(behaviourProps, "isRedstoneConductor"))
-            behaviourJson.addProperty("isSuffocating", getPrivateFieldValue<Boolean>(behaviourProps, "isSuffocating"))
+            //behaviourJson.addProperty("isRedstoneConductor", getPrivateFieldValue<Boolean>(behaviourProps, "isRedstoneConductor"))
+            //behaviourJson.addProperty("isSuffocating", getPrivateFieldValue<Boolean>(behaviourProps, "isSuffocating"))
             behaviourJson.addProperty("requiresCorrectToolForDrops", getPrivateFieldValue<Boolean>(behaviourProps, "requiresCorrectToolForDrops"))
             behaviourJson.addProperty("instrument", getPrivateFieldValue<NoteBlockInstrument>(behaviourProps, "instrument").toString())
             behaviourJson.addProperty("replaceable", getPrivateFieldValue<Boolean>(behaviourProps, "replaceable"))
