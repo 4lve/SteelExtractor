@@ -37,6 +37,14 @@ class Items : SteelExtractor.Extractor {
         return null // no match found
     }
 
+    private fun sortJsonObjectByKeys(obj: JsonObject): JsonObject {
+        val sorted = JsonObject()
+        obj.keySet().sorted().forEach { key ->
+            sorted.add(key, obj.get(key))
+        }
+        return sorted
+    }
+
     override fun extract(server: MinecraftServer): JsonElement {
         val topLevelJson = JsonObject()
 
@@ -59,7 +67,13 @@ class Items : SteelExtractor.Extractor {
                 item.components()
             ).getOrThrow()
 
-            itemJson.add("components", temp)
+            val sortedComponents = if (temp is JsonObject) {
+                sortJsonObjectByKeys(temp)
+            } else {
+                temp
+            }
+
+            itemJson.add("components", sortedComponents)
 
             val isDouble = item is DoubleHighBlockItem
             val isScaffolding = item is ScaffoldingBlockItem
