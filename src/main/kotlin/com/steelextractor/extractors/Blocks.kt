@@ -76,6 +76,60 @@ class Blocks : SteelExtractor.Extractor {
         }
     }
 
+    data class LightProperties(val luminance: Int, val opacity: Int)
+
+    fun createLightPropertiesJson(block: Block): JsonObject {
+        val lightPropsJson = JsonObject()
+
+        val possibleStates = block.stateDefinition.possibleStates
+
+        if (possibleStates.isEmpty()) {
+            val defaultJson = JsonObject()
+            defaultJson.addProperty("luminance", 0)
+            defaultJson.addProperty("opacity", 0)
+            lightPropsJson.add("default", defaultJson)
+            lightPropsJson.add("overwrites", JsonArray())
+            return lightPropsJson
+        }
+
+        // Find the most frequent luminance/opacity combination
+        val lightPropCounts = LinkedHashMap<LightProperties, Int>()
+
+        for (state in possibleStates) {
+            val lightProps = LightProperties(state.lightEmission, state.getLightBlock())
+            lightPropCounts.merge(lightProps, 1, Int::plus)
+        }
+
+        // Find the most frequent light properties
+        val mostFrequentEntry = lightPropCounts.maxByOrNull { it.value }
+        val defaultLightProps = mostFrequentEntry?.key ?: LightProperties(0, 0)
+
+        // Add default
+        val defaultJson = JsonObject()
+        defaultJson.addProperty("luminance", defaultLightProps.luminance)
+        defaultJson.addProperty("opacity", defaultLightProps.opacity)
+        lightPropsJson.add("default", defaultJson)
+
+        // Build overwrites array
+        val overwritesArray = JsonArray()
+
+        for (i in 0 until possibleStates.size) {
+            val state = possibleStates[i]
+            val currentLightProps = LightProperties(state.lightEmission, state.getLightBlock())
+
+            if (currentLightProps != defaultLightProps) {
+                val overwriteJson = JsonObject()
+                overwriteJson.addProperty("offset", i)
+                overwriteJson.addProperty("luminance", currentLightProps.luminance)
+                overwriteJson.addProperty("opacity", currentLightProps.opacity)
+                overwritesArray.add(overwriteJson)
+            }
+        }
+
+        lightPropsJson.add("overwrites", overwritesArray)
+        return lightPropsJson
+    }
+
     fun createBlockStatesJson(block: Block): JsonObject {
         val statesContainerJson = JsonObject()
 
@@ -222,6 +276,14 @@ class Blocks : SteelExtractor.Extractor {
             behaviourJson.addProperty("replaceable", getPrivateFieldValue<Boolean>(behaviourProps, "replaceable"))
 
 
+            // Add state count
+            blockJson.addProperty("state_count", block.stateDefinition.possibleStates.size)
+
+            // Add light properties with default + overwrites pattern
+            val lightPropertiesJson = createLightPropertiesJson(block)
+            blockJson.add("light_properties", lightPropertiesJson)
+
+            // Add collisions with default + overwrites pattern
             val statesStructureJson = createBlockStatesJson(block)
             blockJson.add("collisions", statesStructureJson)
 
