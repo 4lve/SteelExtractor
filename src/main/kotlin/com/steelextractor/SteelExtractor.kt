@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import com.steelextractor.extractors.Blocks
 import com.steelextractor.extractors.Items
+import com.steelextractor.extractors.MenuTypes
 import com.steelextractor.extractors.Packets
 import kotlinx.io.IOException
 import net.fabricmc.api.ModInitializer
@@ -24,11 +25,11 @@ import kotlin.system.measureTimeMillis
 object SteelExtractor : ModInitializer {
     private val logger = LoggerFactory.getLogger("steel-extractor")
 
-	override fun onInitialize() {
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
-		logger.info("Hello Fabric world!")
+    override fun onInitialize() {
+        // This code runs as soon as Minecraft is in a mod-load-ready state.
+        // However, some things (like resources) may still be uninitialized.
+        // Proceed with mild caution.
+        logger.info("Hello Fabric world!")
 
 
         val test = BuiltInRegistries.DATA_COMPONENT_TYPE.byId(0)
@@ -40,7 +41,8 @@ object SteelExtractor : ModInitializer {
         val extractors = arrayOf(
             Blocks(),
             Items(),
-            Packets()
+            Packets(),
+            MenuTypes()
         )
 
         val outputDirectory: Path
@@ -70,7 +72,7 @@ object SteelExtractor : ModInitializer {
             logger.info("Done, took ${timeInMillis}ms")
         })
 
-	}
+    }
 
     interface Extractor {
         fun fileName(): String
