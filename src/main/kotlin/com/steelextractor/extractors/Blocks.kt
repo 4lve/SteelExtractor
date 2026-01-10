@@ -3,26 +3,25 @@ package com.steelextractor.extractors
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.mojang.serialization.JsonOps
 import com.steelextractor.SteelExtractor
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Holder
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.RegistryOps
 import net.minecraft.server.MinecraftServer
-import net.minecraft.world.flag.FeatureFlagSet
 import net.minecraft.world.level.EmptyBlockGetter
 import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.SoundType
 import net.minecraft.world.level.block.state.BlockBehaviour
 import net.minecraft.world.level.block.state.properties.BlockStateProperties
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument
 import net.minecraft.world.level.block.state.properties.Property
 import net.minecraft.world.level.material.PushReaction
+import net.minecraft.world.level.storage.loot.LootTable
 import net.minecraft.world.phys.AABB
 import org.slf4j.LoggerFactory
 import java.lang.reflect.Field
 import java.util.*
-import kotlin.reflect.full.declaredMemberProperties
-import kotlin.reflect.jvm.isAccessible
 
 class Blocks : SteelExtractor.Extractor {
     private val logger = LoggerFactory.getLogger("steel-extractor-blocks")
@@ -132,7 +131,8 @@ class Blocks : SteelExtractor.Extractor {
             val state = possibleStates[i]
             val offset = i
 
-            val currentStateCollisionShapeAabbs = state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
+            val currentStateCollisionShapeAabbs =
+                state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
 
             // Check if the current state's collision shapes differ from the chosen default
             val differsFromDefault = if (currentStateCollisionShapeAabbs.size != defaultCollisionShapeAabbs.size) {
@@ -185,20 +185,27 @@ class Blocks : SteelExtractor.Extractor {
             val behaviourProps = (block as BlockBehaviour).properties()
 
 
-
-
             // Add the differing BlockBehaviour.Properties to blockJson
             val behaviourJson = JsonObject()
             behaviourJson.addProperty("hasCollision", getPrivateFieldValue<Boolean>(behaviourProps, "hasCollision"))
             behaviourJson.addProperty("canOcclude", getPrivateFieldValue<Boolean>(behaviourProps, "canOcclude"))
 
-            behaviourJson.addProperty("explosionResistance", getPrivateFieldValue<Float>(behaviourProps, "explosionResistance"))
-            behaviourJson.addProperty("isRandomlyTicking", getPrivateFieldValue<Boolean>(behaviourProps, "isRandomlyTicking"))
+            behaviourJson.addProperty(
+                "explosionResistance",
+                getPrivateFieldValue<Float>(behaviourProps, "explosionResistance")
+            )
+            behaviourJson.addProperty(
+                "isRandomlyTicking",
+                getPrivateFieldValue<Boolean>(behaviourProps, "isRandomlyTicking")
+            )
 
             behaviourJson.addProperty("forceSolidOff", getPrivateFieldValue<Boolean>(behaviourProps, "forceSolidOff"))
             behaviourJson.addProperty("forceSolidOn", getPrivateFieldValue<Boolean>(behaviourProps, "forceSolidOn"))
 
-            behaviourJson.addProperty("pushReaction", getPrivateFieldValue<PushReaction>(behaviourProps, "pushReaction").toString())
+            behaviourJson.addProperty(
+                "pushReaction",
+                getPrivateFieldValue<PushReaction>(behaviourProps, "pushReaction").toString()
+            )
 
 
             //val soundType = getPrivateFieldValue<SoundType>(behaviourProps, "soundType")
@@ -210,16 +217,32 @@ class Blocks : SteelExtractor.Extractor {
             behaviourJson.addProperty("dynamicShape", getPrivateFieldValue<Boolean>(behaviourProps, "dynamicShape"))
 
             behaviourJson.addProperty("destroyTime", getPrivateFieldValue<Float>(behaviourProps, "destroyTime"))
-            behaviourJson.addProperty("explosionResistance", getPrivateFieldValue<Float>(behaviourProps, "explosionResistance"))
+            behaviourJson.addProperty(
+                "explosionResistance",
+                getPrivateFieldValue<Float>(behaviourProps, "explosionResistance")
+            )
             behaviourJson.addProperty("ignitedByLava", getPrivateFieldValue<Boolean>(behaviourProps, "ignitedByLava"))
 
             behaviourJson.addProperty("liquid", getPrivateFieldValue<Boolean>(behaviourProps, "liquid"))
             behaviourJson.addProperty("isAir", getPrivateFieldValue<Boolean>(behaviourProps, "isAir"))
             //behaviourJson.addProperty("isRedstoneConductor", getPrivateFieldValue<Boolean>(behaviourProps, "isRedstoneConductor"))
             //behaviourJson.addProperty("isSuffocating", getPrivateFieldValue<Boolean>(behaviourProps, "isSuffocating"))
-            behaviourJson.addProperty("requiresCorrectToolForDrops", getPrivateFieldValue<Boolean>(behaviourProps, "requiresCorrectToolForDrops"))
-            behaviourJson.addProperty("instrument", getPrivateFieldValue<NoteBlockInstrument>(behaviourProps, "instrument").toString())
+            behaviourJson.addProperty(
+                "requiresCorrectToolForDrops",
+                getPrivateFieldValue<Boolean>(behaviourProps, "requiresCorrectToolForDrops")
+            )
+            behaviourJson.addProperty(
+                "instrument",
+                getPrivateFieldValue<NoteBlockInstrument>(behaviourProps, "instrument").toString()
+            )
             behaviourJson.addProperty("replaceable", getPrivateFieldValue<Boolean>(behaviourProps, "replaceable"))
+
+            if (block.lootTable.isPresent) {
+                val tableKey = block.lootTable.get();
+                behaviourJson.addProperty(
+                    "lootTable", tableKey.identifier().toString()
+                )
+            }
 
 
             val statesStructureJson = createBlockStatesJson(block)
@@ -246,7 +269,8 @@ class Blocks : SteelExtractor.Extractor {
                 val prefixedValueString = when (comparableValue) {
                     is Boolean -> "bool_$valueString"
                     is Enum<*> -> {
-                        val fullClassName = comparableValue.javaClass.name // e.g., "net.minecraft.core.Direction$Axis$2"
+                        val fullClassName =
+                            comparableValue.javaClass.name // e.g., "net.minecraft.core.Direction$Axis$2"
 
                         // 1. Get substring after the last dot (package name)
                         //    Result: "Direction$Axis$2"
@@ -261,10 +285,14 @@ class Blocks : SteelExtractor.Extractor {
                         // 3. If a '$' remains, take the part after the last '$'
                         //    Result for "Direction$Axis": "Axis"
                         //    Result for "RedstoneSide": "RedstoneSide"
-                        val finalClassName = classNamePart.substringAfterLast('$', classNamePart) // Second 'classNamePart' is default if no '$'
+                        val finalClassName = classNamePart.substringAfterLast(
+                            '$',
+                            classNamePart
+                        ) // Second 'classNamePart' is default if no '$'
 
                         "enum_${finalClassName}_$valueString"
                     }
+
                     is Number -> "int_$valueString"   // Catches Integer, Long, etc.
                     else -> "unknown_$valueString"    // Fallback for any other types
                 }
