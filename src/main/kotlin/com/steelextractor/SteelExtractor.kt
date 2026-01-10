@@ -6,7 +6,6 @@ import com.steelextractor.extractors.Blocks
 import com.steelextractor.extractors.Entities
 import com.steelextractor.extractors.EntityDataSerializersExtractor
 import com.steelextractor.extractors.Items
-import com.steelextractor.extractors.LootTables
 import com.steelextractor.extractors.MenuTypes
 import com.steelextractor.extractors.Packets
 import kotlinx.io.IOException
@@ -45,7 +44,6 @@ object SteelExtractor : ModInitializer {
             MenuTypes(),
             Entities(),
             EntityDataSerializersExtractor(),
-            LootTables()
         )
 
         val outputDirectory: Path
