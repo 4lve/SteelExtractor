@@ -75,99 +75,131 @@ class Blocks : SteelExtractor.Extractor {
         }
     }
 
-    fun createBlockStatesJson(block: Block): JsonObject {
-        val statesContainerJson = JsonObject()
-
-        val possibleStates = block.stateDefinition.possibleStates
-
-        if (possibleStates.isEmpty()) {
-            statesContainerJson.add("default", JsonArray())
-            statesContainerJson.add("overwrites", JsonArray())
-            return statesContainerJson
-        }
-
-        // --- NEW LOGIC: Find the most frequent collision shape ---
-        val collisionShapeCounts = LinkedHashMap<List<AABB>, Int>()
-        val collisionShapeMap = LinkedHashMap<List<AABB>, JsonArray>() // To store pre-calculated JsonArray for shapes
+    /**
+     * Computes shape data (default + overwrites) for a given shape extractor function.
+     * Returns a Pair of (defaultShapeAabbs, shapeMap) for use in building overwrites.
+     */
+    private fun computeShapeData(
+        possibleStates: List<net.minecraft.world.level.block.state.BlockState>,
+        shapeExtractor: (net.minecraft.world.level.block.state.BlockState) -> List<AABB>
+    ): Triple<List<AABB>, JsonArray, LinkedHashMap<List<AABB>, JsonArray>> {
+        val shapeCounts = LinkedHashMap<List<AABB>, Int>()
+        val shapeMap = LinkedHashMap<List<AABB>, JsonArray>()
 
         for (state in possibleStates) {
-            val collisionShapeAabbs = state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
+            val shapeAabbs = shapeExtractor(state)
             val currentShapeJsonArray = JsonArray()
-            for (box in collisionShapeAabbs) {
+            for (box in shapeAabbs) {
                 val idx = shapes.putIfAbsent(box, shapes.size)
                 currentShapeJsonArray.add(Objects.requireNonNullElseGet(idx) { shapes.size - 1 })
             }
 
-            // A List<AABB> needs proper equals/hashCode for map keys
-            // Fortunately, List and AABB (assuming it's the Minecraft AABB)
-            // generally implement equals/hashCode correctly for value comparison.
-            collisionShapeCounts.merge(collisionShapeAabbs, 1, Int::plus)
-            collisionShapeMap.putIfAbsent(collisionShapeAabbs, currentShapeJsonArray)
+            shapeCounts.merge(shapeAabbs, 1, Int::plus)
+            shapeMap.putIfAbsent(shapeAabbs, currentShapeJsonArray)
         }
 
-        // Find the most frequent collision shape
-        val mostFrequentShapeEntry = collisionShapeCounts.maxByOrNull { it.value }
+        val mostFrequentEntry = shapeCounts.maxByOrNull { it.value }
 
-        val defaultCollisionShapeAabbs: List<AABB>
-        val defaultCollisionShapeIdxs: JsonArray
-
-        if (mostFrequentShapeEntry != null) {
-            defaultCollisionShapeAabbs = mostFrequentShapeEntry.key
-            defaultCollisionShapeIdxs = collisionShapeMap[defaultCollisionShapeAabbs]!!
+        return if (mostFrequentEntry != null) {
+            Triple(mostFrequentEntry.key, shapeMap[mostFrequentEntry.key]!!, shapeMap)
         } else {
-            // Should not happen if possibleStates is not empty, but as a fallback
-            defaultCollisionShapeAabbs = emptyList()
-            defaultCollisionShapeIdxs = JsonArray()
+            Triple(emptyList(), JsonArray(), shapeMap)
         }
-        // --- END NEW LOGIC ---
+    }
 
-        statesContainerJson.add("default", defaultCollisionShapeIdxs)
+    /**
+     * Checks if two AABB lists differ.
+     */
+    private fun shapesDiffer(current: List<AABB>, default: List<AABB>): Boolean {
+        if (current.size != default.size) return true
+        return !current.zip(default).all { (c, d) -> c == d }
+    }
 
+    fun createBlockShapesJson(block: Block): JsonObject {
+        val resultJson = JsonObject()
+        val possibleStates = block.stateDefinition.possibleStates
 
-        // 2. Build the overwrites array
-        val overwritesArray = JsonArray()
+        if (possibleStates.isEmpty()) {
+            val emptyCollisions = JsonObject()
+            emptyCollisions.add("default", JsonArray())
+            emptyCollisions.add("overwrites", JsonArray())
+            resultJson.add("collision_shapes", emptyCollisions)
 
-        for (i in 0 until possibleStates.size) {
+            val emptyOutlines = JsonObject()
+            emptyOutlines.add("default", JsonArray())
+            emptyOutlines.add("overwrites", JsonArray())
+            resultJson.add("outline_shapes", emptyOutlines)
+
+            return resultJson
+        }
+
+        // Compute collision shapes
+        val (defaultCollisionAabbs, defaultCollisionIdxs, collisionMap) = computeShapeData(possibleStates) { state ->
+            state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
+        }
+
+        // Compute outline shapes
+        val (defaultOutlineAabbs, defaultOutlineIdxs, outlineMap) = computeShapeData(possibleStates) { state ->
+            state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
+        }
+
+        // Build collision_shapes object
+        val collisionShapesJson = JsonObject()
+        collisionShapesJson.add("default", defaultCollisionIdxs)
+
+        val collisionOverwrites = JsonArray()
+        for (i in possibleStates.indices) {
             val state = possibleStates[i]
-            val offset = i
+            val currentAabbs = state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
 
-            val currentStateCollisionShapeAabbs =
-                state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
-
-            // Check if the current state's collision shapes differ from the chosen default
-            val differsFromDefault = if (currentStateCollisionShapeAabbs.size != defaultCollisionShapeAabbs.size) {
-                true
-            } else {
-                !currentStateCollisionShapeAabbs.zip(defaultCollisionShapeAabbs).all { (current, default) ->
-                    current == default
-                }
-            }
-
-            if (differsFromDefault) {
-                val overwriteStateJson = JsonObject()
-                // Retrieve the already calculated JsonArray for this specific shape from our map
-                val collisionShapeIdxsJson = collisionShapeMap[currentStateCollisionShapeAabbs]
-                    ?: run {
-                        // This case should ideally not happen if every shape was put into collisionShapeMap
-                        // but as a fallback, generate it again
-                        logger.error("Collision shape not found in map for state offset $offset. Recalculating.")
-                        val tempArray = JsonArray()
-                        for (box in currentStateCollisionShapeAabbs) {
-                            val idx = shapes.putIfAbsent(box, shapes.size)
-                            tempArray.add(Objects.requireNonNullElseGet(idx) { shapes.size - 1 })
-                        }
-                        tempArray
+            if (shapesDiffer(currentAabbs, defaultCollisionAabbs)) {
+                val overwrite = JsonObject()
+                val shapeIdxs = collisionMap[currentAabbs] ?: run {
+                    logger.error("Collision shape not found in map for state offset $i. Recalculating.")
+                    val tempArray = JsonArray()
+                    for (box in currentAabbs) {
+                        val idx = shapes.putIfAbsent(box, shapes.size)
+                        tempArray.add(Objects.requireNonNullElseGet(idx) { shapes.size - 1 })
                     }
-
-
-                overwriteStateJson.addProperty("offset", offset)
-                overwriteStateJson.add("collision_shapes", collisionShapeIdxsJson)
-                overwritesArray.add(overwriteStateJson)
+                    tempArray
+                }
+                overwrite.addProperty("offset", i)
+                overwrite.add("shapes", shapeIdxs)
+                collisionOverwrites.add(overwrite)
             }
         }
+        collisionShapesJson.add("overwrites", collisionOverwrites)
+        resultJson.add("collision_shapes", collisionShapesJson)
 
-        statesContainerJson.add("overwrites", overwritesArray)
-        return statesContainerJson
+        // Build outline_shapes object
+        val outlineShapesJson = JsonObject()
+        outlineShapesJson.add("default", defaultOutlineIdxs)
+
+        val outlineOverwrites = JsonArray()
+        for (i in possibleStates.indices) {
+            val state = possibleStates[i]
+            val currentAabbs = state.getShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).toAabbs()
+
+            if (shapesDiffer(currentAabbs, defaultOutlineAabbs)) {
+                val overwrite = JsonObject()
+                val shapeIdxs = outlineMap[currentAabbs] ?: run {
+                    logger.error("Outline shape not found in map for state offset $i. Recalculating.")
+                    val tempArray = JsonArray()
+                    for (box in currentAabbs) {
+                        val idx = shapes.putIfAbsent(box, shapes.size)
+                        tempArray.add(Objects.requireNonNullElseGet(idx) { shapes.size - 1 })
+                    }
+                    tempArray
+                }
+                overwrite.addProperty("offset", i)
+                overwrite.add("shapes", shapeIdxs)
+                outlineOverwrites.add(overwrite)
+            }
+        }
+        outlineShapesJson.add("overwrites", outlineOverwrites)
+        resultJson.add("outline_shapes", outlineShapesJson)
+
+        return resultJson
     }
 
     override fun extract(server: MinecraftServer): JsonElement {
@@ -245,8 +277,9 @@ class Blocks : SteelExtractor.Extractor {
             }
 
 
-            val statesStructureJson = createBlockStatesJson(block)
-            blockJson.add("collisions", statesStructureJson)
+            val shapesStructureJson = createBlockShapesJson(block)
+            blockJson.add("collision_shapes", shapesStructureJson.getAsJsonObject("collision_shapes"))
+            blockJson.add("outline_shapes", shapesStructureJson.getAsJsonObject("outline_shapes"))
 
             // Only add if there are actual differences
             if (behaviourJson.size() > 0) {
