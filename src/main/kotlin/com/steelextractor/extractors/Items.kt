@@ -10,9 +10,6 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.RegistryOps
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.item.BlockItem
-import net.minecraft.world.item.DoubleHighBlockItem
-import net.minecraft.world.item.PlaceOnWaterBlockItem
-import net.minecraft.world.item.ScaffoldingBlockItem
 import org.slf4j.LoggerFactory
 
 class Items : SteelExtractor.Extractor {
@@ -75,13 +72,7 @@ class Items : SteelExtractor.Extractor {
 
             itemJson.add("components", sortedComponents)
 
-            val isDouble = item is DoubleHighBlockItem
-            val isScaffolding = item is ScaffoldingBlockItem
-            val isWaterPlacable = item is PlaceOnWaterBlockItem
-
-            itemJson.addProperty("isDouble", isDouble)
-            itemJson.addProperty("isScaffolding", isScaffolding)
-            itemJson.addProperty("isWaterPlacable", isWaterPlacable)
+            itemJson.addProperty("class", item.javaClass.simpleName)
 
 
             itemsJson.add(itemJson)

@@ -2,6 +2,7 @@ package com.steelextractor
 
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
+import com.steelextractor.extractors.Classes
 import com.steelextractor.extractors.Blocks
 import com.steelextractor.extractors.Entities
 import com.steelextractor.extractors.EntityDataSerializersExtractor
@@ -44,6 +45,7 @@ object SteelExtractor : ModInitializer {
             MenuTypes(),
             Entities(),
             EntityDataSerializersExtractor(),
+            Classes()
         )
 
         val outputDirectory: Path
