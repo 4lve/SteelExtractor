@@ -354,13 +354,6 @@ class Blocks : SteelExtractor.Extractor {
         }
 
         topLevelJson.add("shapes", shapesJson)
-
-        val blockEntitiesJson = JsonArray()
-        for (blockEntity in BuiltInRegistries.BLOCK_ENTITY_TYPE) {
-            blockEntitiesJson.add(BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity)!!.path)
-        }
-
-        topLevelJson.add("block_entity_types", blockEntitiesJson)
         topLevelJson.add("blocks", blocksJson)
 
         return topLevelJson
